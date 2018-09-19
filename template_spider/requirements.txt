@@ -1,0 +1,7 @@
+pandas
+pytz
+dateparser
+pymongo
+scrapy
+fake_useragent
+validators
