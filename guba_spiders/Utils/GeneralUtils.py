@@ -6,6 +6,16 @@ import dateparser as dp
 import validators
 
 
+def re_code_in_parenthesis(raw_str):
+  reg = re.compile(r"\((.*?)\)")
+  return reg.findall(raw_str)[0]
+
+
+def re_datetime_in_post(raw_str):
+  reg = re.compile('[0-9-: ]+')
+  return reg.findall(raw_str)[0].strip()
+
+
 def quote_url(url):
   return quote(url, safe=';/?:@&=+$,()')
 
