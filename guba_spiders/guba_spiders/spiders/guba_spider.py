@@ -63,6 +63,9 @@ class GubaSpider(scrapy.Spider):
           meta=i)
 
   def parse_forum_page(self, response):
+    '''
+    forum page: list of posts of one topic
+    '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
 
@@ -141,6 +144,9 @@ class GubaSpider(scrapy.Spider):
           meta=p_dict)
 
   def parse_post_page(self, response):
+    '''
+    post page: post itself and comments
+    '''
     from scrapy.shell import inspect_response
     inspect_response(response, self)
     meta = response.meta

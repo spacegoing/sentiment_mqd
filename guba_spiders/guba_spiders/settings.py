@@ -14,6 +14,7 @@ BOT_NAME = 'guba_spiders'
 SPIDER_MODULES = ['guba_spiders.spiders']
 NEWSPIDER_MODULE = 'guba_spiders.spiders'
 
+#LOG_LEVEL = 'INFO'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'guba_spiders (+http://www.yourdomain.com)'
@@ -52,9 +53,12 @@ NEWSPIDER_MODULE = 'guba_spiders.spiders'
 
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'guba_spiders.middlewares.GubaSpidersDownloaderMiddleware': 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+    'guba_spiders.middlewares.GubaSpidersDownloaderMiddleware': None,
+    'guba_spiders.middlewares.RandomUserAgentMiddleware': 400
+}
+
+FAKEUSERAGENT_FALLBACK = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'  # RandomUserAgentMiddleware setting
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
@@ -64,9 +68,9 @@ NEWSPIDER_MODULE = 'guba_spiders.spiders'
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'guba_spiders.pipelines.GubaSpidersPipeline': 300,
-#}
+ITEM_PIPELINES = {
+   'guba_spiders.pipelines.GubaSpidersPipeline': 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
