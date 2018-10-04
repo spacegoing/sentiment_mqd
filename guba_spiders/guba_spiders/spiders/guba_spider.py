@@ -57,7 +57,7 @@ class GubaSpider(scrapy.Spider):
       }
       url_dict_list.append(url_dict)
 
-    for i in url_dict_list:
+    for i in url_dict_list[:1]:
       # yield scrapy.Request(
       #     i['stock_url'], callback=self.parse_forum_page, meta=i)
       yield scrapy.Request(
@@ -221,7 +221,8 @@ class GubaSpider(scrapy.Spider):
       page_url = [(response.url[:pos] + "_%d.html#storeply" % i)
                   for i in range(2, page_num + 1)]
 
-      for u in page_url:
+      for u in page_url[:1]:
+        u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
         yield scrapy.Request(
             u, callback=self.parse_update_comment, meta=meta_dict)
 
@@ -281,7 +282,13 @@ class GubaSpider(scrapy.Spider):
       # comment data
       comment_text = c.xpath(
           'string(.//div[contains(@class,"zwlitext")])').extract_first()
-      comment_text = utils.filter_spaces(comment_text)[0]
+      comment_text = utils.filter_spaces(comment_text)
+      if comment_text:
+        comment_text = comment_text[0]
+      else:
+        # Some comments only contains images / emojis without text
+        # save html for latter stage analysis
+        comment_text = c.xpath('.//div[contains(@class,"zwlitext")]').extract_first()
       # reply to parent comment content
       comment_reply_parent_html = c.xpath(
           './/div[contains(@class,"zwlitalkbox")]').extract_first()
