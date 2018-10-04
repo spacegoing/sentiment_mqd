@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import traceback
 import scrapy
 from GubaExchange import ExchangeParser
 import Utils.GeneralUtils as utils
 import Utils.DbUtils as du
+import dateparser as dp
+import math
 
 
 class GubaSpider(scrapy.Spider):
@@ -69,7 +72,8 @@ class GubaSpider(scrapy.Spider):
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
 
-    import dateparser as dp
+    # todo: add db handler
+
     # exclude top advertisement posts (class="settop" or id="ad_topic")
     post_list = response.xpath('//div[contains(@class,"articleh") and ' +
                                'not(.//em[contains(@class,"settop")]) and '
@@ -143,26 +147,118 @@ class GubaSpider(scrapy.Spider):
           callback=self.parse_post_page,
           meta=p_dict)
 
+    # todo: pagination
+    # todo: stop condition
+
   def parse_post_page(self, response):
     '''
     post page: post itself and comments
     '''
-    from scrapy.shell import inspect_response
-    inspect_response(response, self)
+    # from scrapy.shell import inspect_response
+    # inspect_response(response, self)
     meta = response.meta
+    db_handler = 'post_insert'
+    meta_dict = {
+        "post_url": response.url,
+        "stock_code": meta['stock_code'],
+        "stock_name": meta['stock_name'],
+        "stock_url": meta['stock_url']
+    }
+    yield_dict = {
+        'error': False,
+        'meta_dict': meta_dict,
+        'db_handler': db_handler
+    }
 
-    import dateparser as dp
-    import math
+    try:
 
-    post_time = response.xpath(
-        'string(//div[contains(@class,"zwfbtime")])').extract_first()
-    post_time = utils.re_datetime_in_post(post_time)
-    post_time = dp.parse(post_time)
-    post_content_html = response.xpath(
-        '//div[contains(@id,"zwconbody")]').extract_first()
+      post_time = response.xpath(
+          'string(//div[contains(@class,"zwfbtime")])').extract_first()
+      post_time = utils.re_datetime_in_post(post_time)
+      post_time = dp.parse(post_time)
+      post_content_html = response.xpath(
+          '//div[contains(@id,"zwconbody")]').extract_first()
 
+      for res_dict in self.parse_insert_comment(response):
+        comment_dict_list = res_dict['comment_dict_list']
+        stop_flag = res_dict['stop_flag']
+
+      last_comment_time = post_time
+      if comment_dict_list:
+        last_comment_time = comment_dict_list[0]["comment_time"]
+
+      post_dict = {
+          "post_url": response.url,
+          "post_date": datetime.combine(post_time.date(), datetime.min.time()),
+          "post_datetime": post_time,
+          "post_content_html": post_content_html,
+          "label": meta['label'],
+          "last_comment_time": last_comment_time,
+          "read_no": meta['read_no'],
+          "reply_no": meta['reply_no'],
+          "title": meta['title'],
+          "user_name": meta['user_name'],
+          "user_url": meta['user_url'],
+          "comment_dict_list": comment_dict_list
+      }
+      yield_dict['result'] = post_dict
+
+      yield yield_dict
+
+      # todo: stop_flag
+
+      # pagination
+      # from js file function gubanews.pager
+      page_info = response.xpath(
+          '//span[@id="newspage"]/@data-page').extract_first()
+      _, total_num, per_page_num, cur_page = page_info.split('|')
+      total_num, per_page_num, cur_page = [
+          int(i.strip()) for i in [total_num, per_page_num, cur_page]
+      ]
+      # from js file define("guba_page", function() {
+      page_num = math.ceil(total_num / per_page_num)
+      pos = response.url.index(".html")
+      page_url = [(response.url[:pos] + "_%d.html#storeply" % i)
+                  for i in range(2, page_num + 1)]
+
+      for u in page_url:
+        yield scrapy.Request(
+            u, callback=self.parse_update_comment, meta=meta_dict)
+
+    except Exception as e:
+      yield_dict['error'] = {
+          'error_message': '%s: %s' % (e.__class__, str(e)),
+          'traceback': traceback.format_exc(),
+          'url': response.url
+      }
+      yield yield_dict
+
+  def parse_insert_comment(self, response):
+    comment_result_dict = dict()
+    comment_result_dict['stop_flag'] = False
+    comment_dict_list = self.comment_list_parser(response)
+    comment_result_dict['comment_dict_list'] = comment_dict_list
+    yield comment_result_dict
+
+  def parse_update_comment(self, response):
+    yield_dict = {
+        'error': False,
+        'meta_dict': response.meta,
+        'db_handler': 'comment_update'
+    }
+    comment_result_dict = dict()
+    comment_result_dict['stop_flag'] = False
+    comment_dict_list = self.comment_list_parser(response)
+    yield_dict['result'] = comment_dict_list
+    yield yield_dict
+
+  def comment_list_parser(self, response):
+    '''
+    return only one comment_dict_list
+    '''
     # there are class values like zwliimage etc
     # contains zwli as sub string
+
     comment_list = response.xpath(
         '//div[contains(concat(" ", @class, " "), " zwli ")]')
     comment_dict_list = []
@@ -209,38 +305,8 @@ class GubaSpider(scrapy.Spider):
       }
       comment_dict_list.append(comment_dict)
 
-    last_comment_time = post_time
-    if comment_dict_list:
-      last_comment_time = comment_dict_list[0]["comment_time"]
+    return comment_dict_list
 
-    post_dict = {
-        "post_time": post_time,
-        "post_content_html": post_content_html,
-        "label": meta['label'],
-        "last_comment_time": last_comment_time,
-        "read_no": meta['read_no'],
-        "title": meta['title'],
-        "user_name": meta['user_name'],
-        "user_url": meta['user_url'],
-        "comment_dict_list": comment_dict_list
-    }
-
-    # pagination
-    # from js file function gubanews.pager
-    page_info = response.xpath(
-        '//span[@id="newspage"]/@data-page').extract_first()
-    _, total_num, per_page_num, cur_page = page_info.split('|')
-    total_num, per_page_num, cur_page = [
-        int(i.strip()) for i in [total_num, per_page_num, cur_page]
-    ]
-    # from js file define("guba_page", function() {
-    page_num = math.ceil(total_num / per_page_num)
-    pos = response.url.index(".html")
-    page_url = [(response.url[:pos] + "_%d.html#storeply" % i)
-                for i in range(2, page_num + 1)]
-    for u in page_url:
-      yield scrapy.Request(
-          u, callback=self.parse_post_page, meta=meta)
     # stop_scrape_flag = False
     # news_list = self.exchange.get_news_list(response)
     # if not news_list:
