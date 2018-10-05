@@ -10,6 +10,13 @@ import math
 
 
 class GubaSpider(scrapy.Spider):
+  '''
+  yield_dict: mandantory keys
+    db_handler
+    meta_dict
+    error
+    result
+  '''
   name = 'guba'
 
   def __init__(self):
@@ -57,13 +64,15 @@ class GubaSpider(scrapy.Spider):
       }
       url_dict_list.append(url_dict)
 
-    for i in url_dict_list[:1]:
-      # yield scrapy.Request(
-      #     i['stock_url'], callback=self.parse_forum_page, meta=i)
+    for i in url_dict_list:
       yield scrapy.Request(
-          'http://guba.eastmoney.com/list,600000.html',
-          callback=self.parse_forum_page,
-          meta=i)
+          i['stock_url'], callback=self.parse_forum_page, meta=i)
+
+    # for i in url_dict_list[:1]:
+    #   yield scrapy.Request(
+    #       'http://guba.eastmoney.com/list,600000.html',
+    #       callback=self.parse_forum_page,
+    #       meta=i)
 
   def parse_forum_page(self, response):
     '''
@@ -125,7 +134,8 @@ class GubaSpider(scrapy.Spider):
         }
         post_meta_dict_list.append(post_meta_dict)
 
-      except Exception as e:  # not news row, skip
+      except Exception as e:  #pylint: disable=broad-except
+        # todo: not news row, skip???
         # todo: exception handler
         item['error'] = {
             'post_row_html': p.extract(),
@@ -138,14 +148,18 @@ class GubaSpider(scrapy.Spider):
         print(item)
         print('#' * 100)
 
-    for p_dict in post_meta_dict_list[:1]:
+    for p_dict in post_meta_dict_list:
       p_dict.update(response.meta)
-      # yield scrapy.Request(
-      #     p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
       yield scrapy.Request(
-          'http://guba.eastmoney.com/news,600000,750692559,d.html#storeply',
-          callback=self.parse_post_page,
-          meta=p_dict)
+          p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
+
+    # for p_dict in post_meta_dict_list[:1]:
+    #   p_dict.update(response.meta)
+    #   yield scrapy.Request(
+    #       'http://guba.eastmoney.com/news,600000,750692559,d.html#storeply',
+    #       callback=self.parse_post_page,
+    #       meta=p_dict)
+
 
     # todo: pagination
     # todo: stop condition
@@ -179,9 +193,9 @@ class GubaSpider(scrapy.Spider):
       post_content_html = response.xpath(
           '//div[contains(@id,"zwconbody")]').extract_first()
 
-      for res_dict in self.parse_insert_comment(response):
-        comment_dict_list = res_dict['comment_dict_list']
-        stop_flag = res_dict['stop_flag']
+      res_dict = next(self.parse_insert_comment(response))  # pylint: disable=stop-iteration-return
+      comment_dict_list = res_dict['comment_dict_list']
+      stop_flag = res_dict['stop_flag']
 
       last_comment_time = post_time
       if comment_dict_list:
@@ -221,47 +235,61 @@ class GubaSpider(scrapy.Spider):
       page_url = [(response.url[:pos] + "_%d.html#storeply" % i)
                   for i in range(2, page_num + 1)]
 
-      for u in page_url[:1]:
-        u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
+      for u in page_url:
         yield scrapy.Request(
-            u, callback=self.parse_update_comment, meta=meta_dict)
+            u, callback=self.parse_append_comment, meta=meta_dict)
 
-    except Exception as e:
-      yield_dict['error'] = {
-          'error_message': '%s: %s' % (e.__class__, str(e)),
-          'traceback': traceback.format_exc(),
-          'url': response.url
-      }
+      # u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
+      # yield scrapy.Request(
+      #     u, callback=self.parse_append_comment, meta=meta_dict)
+
+    except Exception as e:  #pylint: disable=broad-except
+      yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
 
   def parse_insert_comment(self, response):
-    comment_result_dict = dict()
-    comment_result_dict['stop_flag'] = False
-    comment_dict_list = self.comment_list_parser(response)
-    comment_result_dict['comment_dict_list'] = comment_dict_list
-    yield comment_result_dict
-
-  def parse_update_comment(self, response):
     yield_dict = {
         'error': False,
         'meta_dict': response.meta,
-        'db_handler': 'comment_update'
     }
-    comment_result_dict = dict()
-    comment_result_dict['stop_flag'] = False
-    comment_dict_list = self.comment_list_parser(response)
-    yield_dict['result'] = comment_dict_list
-    yield yield_dict
+    try:
+      # todo: comment_stop_flag
+      comment_result_dict = dict()
+      comment_result_dict['stop_flag'] = False
+      comment_dict_list = self.comment_list_parser(response)
+      # todo: inconsistency with yield_dict
+      comment_result_dict['comment_dict_list'] = comment_dict_list
+      yield comment_result_dict
+    except Exception as e:  #pylint: disable=broad-except
+      yield_dict = self.get_except_yield_dict(e, yield_dict, response)
+      yield yield_dict
+
+  def parse_append_comment(self, response):
+    yield_dict = {
+        'error': False,
+        'meta_dict': response.meta,
+        'db_handler': 'comment_append'
+    }
+    try:
+      # todo: comment_stop_flag
+      comment_result_dict = dict()
+      comment_result_dict['stop_flag'] = False
+      comment_dict_list = self.comment_list_parser(response)
+      yield_dict['result'] = comment_dict_list
+      yield yield_dict
+    except Exception as e:  #pylint: disable=broad-except
+      yield_dict = self.get_except_yield_dict(e, yield_dict, response)
+      yield yield_dict
 
   def comment_list_parser(self, response):
     '''
     return only one comment_dict_list
     '''
-    # there are class values like zwliimage etc
-    # contains zwli as sub string
-
     comment_list = response.xpath(
         '//div[contains(concat(" ", @class, " "), " zwli ")]')
+    # there are class values like zwliimage etc
+    # contains 'zwli' as sub string. this xpath only
+    # selects 'zwli' tag
     comment_dict_list = []
     for c in comment_list:
       # comment meta data
@@ -288,7 +316,8 @@ class GubaSpider(scrapy.Spider):
       else:
         # Some comments only contains images / emojis without text
         # save html for latter stage analysis
-        comment_text = c.xpath('.//div[contains(@class,"zwlitext")]').extract_first()
+        comment_text = c.xpath(
+            './/div[contains(@class,"zwlitext")]').extract_first()
       # reply to parent comment content
       comment_reply_parent_html = c.xpath(
           './/div[contains(@class,"zwlitalkbox")]').extract_first()
@@ -314,52 +343,14 @@ class GubaSpider(scrapy.Spider):
 
     return comment_dict_list
 
-    # stop_scrape_flag = False
-    # news_list = self.exchange.get_news_list(response)
-    # if not news_list:
-    #   raise Exception('Error: Website Structure Has Been Changed!' +
-    #                   ' Maintainance Needed!')
-    # for i, news_row in enumerate(news_list):
-    #   # has to assign new dict every loop
-    #   # otherwise mongodb raises dup key (Id) error
-    #   item = {
-    #       'mkt': self.exchange.uptick_name,
-    #       'mkt_id': self.mkt_id,
-    #       'tzinfo': self.exchange.tzinfo,
-    #       'error': True
-    #   }
-    #   try:  # news row won't have error
-    #     date_time, url, title, misc_fields_dict = self.exchange.get_news_fields(
-    #         news_row)
-
-    #     # database has previous news and scraped news is older than database
-    #     if self.latest_date and date_time < self.latest_date:
-    #       stop_scrape_flag = True
-    #       break
-
-    #     # insert record to mongodb
-    #     item['date_time'] = date_time
-    #     item['title'] = title
-    #     item['url'] = url
-    #     item['error'] = False
-    #     item.update(misc_fields_dict)
-    #     yield item
-
-    #   except Exception as e:  # not news row, skip
-    #     item['error'] = {
-    #         'news_row_html': news_row.extract(),
-    #         'error_message': '%s: %s' % (e.__class__, str(e)),
-    #         'row_no': i,
-    #         'traceback': traceback.format_exc(),
-    #         'url': response.url
-    #     }
-    #     yield item
-    #     continue
-
-    # # todo: test without keep_follow_page flag
-    # if not stop_scrape_flag:
-    #   for url, meta in self.exchange.get_pagination_urls(response):
-    #     yield scrapy.Request(url, callback=self.parse_forum_page, meta=meta)
+  def get_except_yield_dict(self, e, yield_dict, response):
+    yield_dict['error'] = {
+        'error_message': '%s: %s' % (e.__class__, str(e)),
+        'traceback': traceback.format_exc(),
+        'url': response.url
+    }
+    yield_dict['db_handler'] = 'error_insert'
+    return yield_dict
 
   # todo: multi-spider close
   def closed(self, reason):
