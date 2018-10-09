@@ -1,1 +1,0 @@
-/Users/spacegoing/macCodeLab-MBP2015/MQD/Sentiment/guba_spiders/guba_spiders/spiders/GubaExchange.py

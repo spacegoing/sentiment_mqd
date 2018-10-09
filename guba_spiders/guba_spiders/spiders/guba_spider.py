@@ -2,7 +2,6 @@
 from datetime import datetime
 import traceback
 import scrapy
-from GubaExchange import ExchangeParser
 import Utils.GeneralUtils as utils
 import Utils.DbUtils as du
 import dateparser as dp
@@ -33,11 +32,11 @@ class GubaSpider(scrapy.Spider):
         'http://guba.eastmoney.com/remenba.aspx?type=4'  # concept forum
     ]
 
-    self.exchange = ExchangeParser()
+    # self.exchange = ExchangeParser()
     # private
     # if self.exchange.is_multi_source_exchange:
-    self.latest_date = utils.create_date_time_tzinfo('30 DEC 2017',
-                                                     self.exchange.tzinfo)
+    # self.latest_date = utils.create_date_time_tzinfo('30 DEC 2017',
+    #                                                  self.exchange.tzinfo)
 
   def start_requests(self):
     for url in self.start_mkt_urls:
@@ -160,7 +159,6 @@ class GubaSpider(scrapy.Spider):
     #       callback=self.parse_post_page,
     #       meta=p_dict)
 
-
     # todo: pagination
     # todo: stop condition
 
@@ -185,7 +183,6 @@ class GubaSpider(scrapy.Spider):
     }
 
     try:
-
       post_time = response.xpath(
           'string(//div[contains(@class,"zwfbtime")])').extract_first()
       post_time = utils.re_datetime_in_post(post_time)
@@ -220,30 +217,14 @@ class GubaSpider(scrapy.Spider):
       yield yield_dict
 
       # todo: stop_flag
-
-      # pagination
-      # from js file function gubanews.pager
-      page_info = response.xpath(
-          '//span[@id="newspage"]/@data-page').extract_first()
-      _, total_num, per_page_num, cur_page = page_info.split('|')
-      total_num, per_page_num, cur_page = [
-          int(i.strip()) for i in [total_num, per_page_num, cur_page]
-      ]
-      # from js file define("guba_page", function() {
-      page_num = math.ceil(total_num / per_page_num)
-      pos = response.url.index(".html")
-      page_url = [(response.url[:pos] + "_%d.html#storeply" % i)
-                  for i in range(2, page_num + 1)]
-
-      for u in page_url:
+      page_url_list = self.comment_pagination_parser(response)
+      for u in page_url_list:
         yield scrapy.Request(
             u, callback=self.parse_append_comment, meta=meta_dict)
 
       # u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
       # yield scrapy.Request(
       #     u, callback=self.parse_append_comment, meta=meta_dict)
-
-
 
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
@@ -282,6 +263,26 @@ class GubaSpider(scrapy.Spider):
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
+
+  def comment_pagination_parser(self, response):
+    page_url_list = []
+    # pagination
+    # from js file function gubanews.pager
+    page_info = response.xpath(
+        '//span[@id="newspage"]/@data-page').extract_first()
+
+    if page_info:
+      _, total_num, per_page_num, cur_page = page_info.split('|')
+      total_num, per_page_num, cur_page = [
+          int(i.strip()) for i in [total_num, per_page_num, cur_page]
+      ]
+      # from js file define("guba_page", function() {
+      page_num = math.ceil(total_num / per_page_num)
+      pos = response.url.index(".html")
+      page_url_list = [(response.url[:pos] + "_%d.html#storeply" % i)
+                       for i in range(2, page_num + 1)]
+
+    return page_url_list
 
   def comment_list_parser(self, response):
     '''
