@@ -36,6 +36,11 @@ class GubaSpider(scrapy.Spider):
         'http://guba.eastmoney.com/remenba.aspx?type=4'  # concept forum
     ]
 
+    # flags' dict for determing whether keep scraping
+    self.comment_cont_dict = dict()
+    self.post_cont_dict = dict()
+    self.stop_date_flag = dp.parse('2018-08-31')
+
     # self.exchange = ExchangeParser()
     # private
     # if self.exchange.is_multi_source_exchange:
@@ -151,6 +156,7 @@ class GubaSpider(scrapy.Spider):
         print(item)
         print('#' * 100)
 
+    # scrape each post
     for p_dict in post_meta_dict_list:
       p_dict.update(response.meta)
       yield scrapy.Request(
@@ -186,6 +192,9 @@ class GubaSpider(scrapy.Spider):
         'db_handler': db_handler
     }
 
+    # comment_stop_mechanism
+    self.comment_cont_dict[response.url] = True
+
     try:
       post_time = response.xpath(
           'string(//div[contains(@class,"zwfbtime")])').extract_first()
@@ -198,7 +207,6 @@ class GubaSpider(scrapy.Spider):
       if res_dict.get('error'):
         raise InnerException(res_dict)
       comment_dict_list = res_dict['comment_dict_list']
-      stop_flag = res_dict['stop_flag']
 
       last_comment_time = post_time
       if comment_dict_list:
@@ -225,8 +233,13 @@ class GubaSpider(scrapy.Spider):
       # todo: stop_flag
       page_url_list = self.comment_pagination_parser(response)
       for u in page_url_list:
-        yield scrapy.Request(
-            u, callback=self.parse_append_comment, meta=meta_dict)
+        # comment_stop_mechanism
+        if self.comment_cont_dict.get(response.url):
+          yield scrapy.Request(
+              u, callback=self.parse_append_comment, meta=meta_dict)
+        else:
+          # self.comment_cont_dict do not have key, then stop
+          break
 
       # u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
       # yield scrapy.Request(
@@ -245,12 +258,9 @@ class GubaSpider(scrapy.Spider):
     }
     try:
       # todo: comment_stop_flag
-      comment_result_dict = dict()
-      comment_result_dict['stop_flag'] = False
       comment_dict_list = self.comment_list_parser(response)
-      # todo: inconsistency with yield_dict
-      comment_result_dict['comment_dict_list'] = comment_dict_list
-      yield comment_result_dict
+      yield_dict['comment_dict_list'] = comment_dict_list
+      yield yield_dict
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
@@ -266,6 +276,15 @@ class GubaSpider(scrapy.Spider):
       comment_result_dict = dict()
       comment_result_dict['stop_flag'] = False
       comment_dict_list = self.comment_list_parser(response)
+
+      # comment_stop_mechanism
+      i = 0
+      for i, c in enumerate(comment_dict_list):
+        if c['comment_time'] < self.stop_date_flag:
+          self.comment_cont_dict.pop(response.meta['post_url'])
+          break
+      comment_dict_list = comment_dict_list[:i]
+
       yield_dict['result'] = comment_dict_list
       yield yield_dict
     except Exception as e:  #pylint: disable=broad-except
