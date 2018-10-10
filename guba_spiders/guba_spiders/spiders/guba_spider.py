@@ -2,7 +2,6 @@
 from datetime import datetime
 import traceback
 import scrapy
-from GubaExchange import ExchangeParser
 import Utils.GeneralUtils as utils
 import Utils.DbUtils as du
 import dateparser as dp
@@ -33,11 +32,11 @@ class GubaSpider(scrapy.Spider):
         'http://guba.eastmoney.com/remenba.aspx?type=4'  # concept forum
     ]
 
-    self.exchange = ExchangeParser()
+    # self.exchange = ExchangeParser()
     # private
     # if self.exchange.is_multi_source_exchange:
-    self.latest_date = utils.create_date_time_tzinfo('30 DEC 2017',
-                                                     self.exchange.tzinfo)
+    # self.latest_date = utils.create_date_time_tzinfo('30 DEC 2017',
+    #                                                  self.exchange.tzinfo)
 
   def start_requests(self):
     for url in self.start_mkt_urls:
@@ -184,7 +183,6 @@ class GubaSpider(scrapy.Spider):
     }
 
     try:
-
       post_time = response.xpath(
           'string(//div[contains(@class,"zwfbtime")])').extract_first()
       post_time = utils.re_datetime_in_post(post_time)
