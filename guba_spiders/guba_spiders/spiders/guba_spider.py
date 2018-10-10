@@ -8,6 +8,10 @@ import dateparser as dp
 import math
 
 
+class InnerException(Exception):
+  pass
+
+
 class GubaSpider(scrapy.Spider):
   '''
   yield_dict: mandantory keys
@@ -191,6 +195,8 @@ class GubaSpider(scrapy.Spider):
           '//div[contains(@id,"zwconbody")]').extract_first()
 
       res_dict = next(self.parse_insert_comment(response))  # pylint: disable=stop-iteration-return
+      if res_dict.get('error'):
+        raise InnerException(res_dict)
       comment_dict_list = res_dict['comment_dict_list']
       stop_flag = res_dict['stop_flag']
 
@@ -226,6 +232,8 @@ class GubaSpider(scrapy.Spider):
       # yield scrapy.Request(
       #     u, callback=self.parse_append_comment, meta=meta_dict)
 
+    except InnerException as i:
+      yield i.args[0]
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
@@ -332,6 +340,7 @@ class GubaSpider(scrapy.Spider):
             './/div[contains(@class,"zwlitalkboxtext")]/@data-huifuid'
         ).extract_first()
       comment_dict = {
+          "comment_url": response.url,
           "comment_id": comment_id,
           "comment_reply_id": comment_reply_id,
           "comment_reply_uid": comment_reply_uid,
