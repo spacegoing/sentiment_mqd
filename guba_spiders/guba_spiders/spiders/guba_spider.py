@@ -24,8 +24,8 @@ class GubaSpider(scrapy.Spider):
     self.start_mkt_urls = [
         'http://guba.eastmoney.com/remenba.aspx?type=1&tab=1',  # shanghai
         'http://guba.eastmoney.com/remenba.aspx?type=1&tab=2',  # shenzhen
-        'http://guba.eastmoney.com/remenba.aspx?type=1&tab=3',  # hongkong
-        'http://guba.eastmoney.com/remenba.aspx?type=1&tab=4',  # us
+        # 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=3',  # hongkong
+        # 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=4',  # us
     ]
     self.start_topic_urls = [
         'http://guba.eastmoney.com/remenba.aspx?type=2',  # subject forum
@@ -160,7 +160,6 @@ class GubaSpider(scrapy.Spider):
     #       callback=self.parse_post_page,
     #       meta=p_dict)
 
-
     # todo: pagination
     # todo: stop condition
 
@@ -220,22 +219,8 @@ class GubaSpider(scrapy.Spider):
       yield yield_dict
 
       # todo: stop_flag
-
-      # pagination
-      # from js file function gubanews.pager
-      page_info = response.xpath(
-          '//span[@id="newspage"]/@data-page').extract_first()
-      _, total_num, per_page_num, cur_page = page_info.split('|')
-      total_num, per_page_num, cur_page = [
-          int(i.strip()) for i in [total_num, per_page_num, cur_page]
-      ]
-      # from js file define("guba_page", function() {
-      page_num = math.ceil(total_num / per_page_num)
-      pos = response.url.index(".html")
-      page_url = [(response.url[:pos] + "_%d.html#storeply" % i)
-                  for i in range(2, page_num + 1)]
-
-      for u in page_url:
+      page_url_list = self.comment_pagination_parser(response)
+      for u in page_url_list:
         yield scrapy.Request(
             u, callback=self.parse_append_comment, meta=meta_dict)
 
@@ -280,6 +265,26 @@ class GubaSpider(scrapy.Spider):
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
+
+  def comment_pagination_parser(self, response):
+    page_url_list = []
+    # pagination
+    # from js file function gubanews.pager
+    page_info = response.xpath(
+        '//span[@id="newspage"]/@data-page').extract_first()
+
+    if page_info:
+      _, total_num, per_page_num, cur_page = page_info.split('|')
+      total_num, per_page_num, cur_page = [
+          int(i.strip()) for i in [total_num, per_page_num, cur_page]
+      ]
+      # from js file define("guba_page", function() {
+      page_num = math.ceil(total_num / per_page_num)
+      pos = response.url.index(".html")
+      page_url_list = [(response.url[:pos] + "_%d.html#storeply" % i)
+                       for i in range(2, page_num + 1)]
+
+    return page_url_list
 
   def comment_list_parser(self, response):
     '''
