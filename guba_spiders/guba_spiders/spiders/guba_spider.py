@@ -12,6 +12,10 @@ class InnerException(Exception):
   pass
 
 
+class IgnoreException(Exception):
+  pass
+
+
 class GubaSpider(scrapy.Spider):
   '''
   yield_dict: mandantory keys
@@ -88,8 +92,16 @@ class GubaSpider(scrapy.Spider):
     '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
+    meta_dict = response.meta
+    db_handler = ''
+    yield_dict = {
+        'error': False,
+        'meta_dict': meta_dict,
+        'db_handler': db_handler
+    }
 
-    # todo: add db handler
+    # post_stop_mechanism
+    self.post_cont_dict[meta_dict['stock_url']] = True
 
     # exclude top advertisement posts (class="settop" or id="ad_topic")
     post_list = response.xpath('//div[contains(@class,"articleh") and ' +
@@ -97,8 +109,8 @@ class GubaSpider(scrapy.Spider):
                                'not(contains(@id, "ad_topic"))]')
     post_meta_dict_list = []
     item = {}
-    for i, p in enumerate(post_list):
-      try:
+    try:
+      for i, p in enumerate(post_list):
         # l1 & l2 read, reply numbers
         read_no = p.xpath(
             'string(./span[contains(@class,"l1")])').extract_first()
@@ -122,7 +134,10 @@ class GubaSpider(scrapy.Spider):
         # l4 user
         user_name = p.xpath(
             './span[contains(@class,"l4")]/a/text()').extract_first()
-        user_name = user_name.strip()
+        try:
+          user_name = user_name.strip()
+        except:
+          raise IgnoreException('ignore')
         user_rel_url = p.xpath(
             './span[contains(@class,"l4")]/a/@href').extract_first()
         user_url = response.urljoin(user_rel_url)
@@ -142,25 +157,26 @@ class GubaSpider(scrapy.Spider):
         }
         post_meta_dict_list.append(post_meta_dict)
 
-      except Exception as e:  #pylint: disable=broad-except
-        # todo: not news row, skip???
-        # todo: exception handler
-        item['error'] = {
-            'post_row_html': p.extract(),
-            'error_message': '%s: %s' % (e.__class__, str(e)),
-            'row_no': i,
-            'traceback': traceback.format_exc(),
-            'url': response.url
-        }
-        print('#' * 100)
-        print(item)
-        print('#' * 100)
+    except IgnoreException:
+      pass
+    except Exception as e:  #pylint: disable=broad-except
+      # todo: not news row, skip???
+      yield_dict['error'] = {
+          'post_row_html': p.extract(),
+          'error_message': '%s: %s' % (e.__class__, str(e)),
+          'row_no': i,
+          'traceback': traceback.format_exc(),
+          'url': response.url
+      }
+      yield yield_dict
 
     # scrape each post
     for p_dict in post_meta_dict_list:
-      p_dict.update(response.meta)
-      yield scrapy.Request(
-          p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
+      # post_stop_mechanism
+      if self.post_cont_dict.get(meta_dict['stock_url']):
+        p_dict.update(response.meta)
+        yield scrapy.Request(
+            p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
 
     # for p_dict in post_meta_dict_list[:1]:
     #   p_dict.update(response.meta)
@@ -169,8 +185,12 @@ class GubaSpider(scrapy.Spider):
     #       callback=self.parse_post_page,
     #       meta=p_dict)
 
-    # todo: pagination
-    # todo: stop condition
+    next_url = self.post_pagination_parser(response)
+    if next_url:
+      # post_stop_mechanism
+      if self.post_cont_dict.get(meta_dict['stock_url']):
+        yield scrapy.Request(
+            next_url, callback=self.parse_forum_page, meta=meta_dict)
 
   def parse_post_page(self, response):
     '''
@@ -212,6 +232,13 @@ class GubaSpider(scrapy.Spider):
       if comment_dict_list:
         last_comment_time = comment_dict_list[0]["comment_time"]
 
+      # post_stop_mechanism
+      if last_comment_time < self.stop_date_flag:
+        try:
+          self.post_cont_dict.pop(meta_dict['stock_url'])
+        except Exception as e:
+          raise IgnoreException(e)
+
       post_dict = {
           "post_url": response.url,
           "post_date": datetime.combine(post_time.date(), datetime.min.time()),
@@ -247,6 +274,8 @@ class GubaSpider(scrapy.Spider):
 
     except InnerException as i:
       yield i.args[0]
+    except IgnoreException:
+      pass
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
@@ -272,24 +301,51 @@ class GubaSpider(scrapy.Spider):
         'db_handler': 'comment_append'
     }
     try:
-      # todo: comment_stop_flag
-      comment_result_dict = dict()
-      comment_result_dict['stop_flag'] = False
       comment_dict_list = self.comment_list_parser(response)
 
       # comment_stop_mechanism
       i = 0
       for i, c in enumerate(comment_dict_list):
         if c['comment_time'] < self.stop_date_flag:
-          self.comment_cont_dict.pop(response.meta['post_url'])
+          try:
+            self.comment_cont_dict.pop(response.meta['post_url'])
+          except:
+            raise IgnoreException('ignore')
           break
+      # because the url has already sorted by date. All comments
+      # before i is later than stop_date_flag
       comment_dict_list = comment_dict_list[:i]
 
       yield_dict['result'] = comment_dict_list
       yield yield_dict
+    except IgnoreException:
+      pass
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
+
+  def post_pagination_parser(self, response):
+    page_url = ''
+    # pagination
+    # from js file function gubanews.pager
+    page_info = response.xpath(
+        '//div[contains(@class, "pager_content")]' +
+        '/span[@class="pagernums"]/@data-pager').extract_first()
+
+    if page_info:
+      _, total_num, per_page_num, cur_page = page_info.split('|')
+      total_num, per_page_num, cur_page = [
+          int(i.strip()) for i in [total_num, per_page_num, cur_page]
+      ]
+      # from js file define("guba_page", function() {
+      page_num = math.ceil(total_num / per_page_num)
+      next_num = cur_page + 1
+      if next_num > page_num:
+        return ''
+      else:
+        pos = response.url.index(".html")
+        page_url = response.url[:pos] + "_%d.html" % next_num
+    return page_url
 
   def comment_pagination_parser(self, response):
     page_url_list = []
