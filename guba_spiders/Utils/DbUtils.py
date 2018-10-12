@@ -8,6 +8,8 @@ db_handler_dict = dict()
 # todo: move to database
 client = MongoClient('mongodb://localhost:27017/')
 mkt_db = client['Guba_Posts']
+client.drop_database('Guba_Meta')
+meta_db = client['Guba_Meta']
 
 
 def regi_func(f):
@@ -36,9 +38,17 @@ def comment_append(result, meta):
   }})
 
 
+def stock_code_insert(result, meta):
+  col_name = meta['market']
+  meta_db[col_name].insert_many(result)
+
+
 # db handlers end
 # register function to db_handler_dict
-_ = [regi_func(i) for i in [error_insert, post_insert, comment_append]]
+_ = [
+    regi_func(i)
+    for i in [error_insert, post_insert, comment_append, stock_code_insert]
+]
 
 
 # Utils Other than db handlers

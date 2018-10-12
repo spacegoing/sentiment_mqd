@@ -28,12 +28,12 @@ class GubaSpider(scrapy.Spider):
 
   def __init__(self):
     super().__init__()
-    self.start_mkt_urls = [
-        'http://guba.eastmoney.com/remenba.aspx?type=1&tab=1',  # shanghai
-        'http://guba.eastmoney.com/remenba.aspx?type=1&tab=2',  # shenzhen
-        # 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=3',  # hongkong
-        # 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=4',  # us
-    ]
+    self.start_mkt_urls = {
+        'SH': 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=1',  # shanghai
+        'SZ': 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=2',  # shenzhen
+        # 'HK': 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=3',  # hongkong
+        # 'US': 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=4',  # us
+    }
     self.start_topic_urls = [
         'http://guba.eastmoney.com/remenba.aspx?type=2',  # subject forum
         'http://guba.eastmoney.com/remenba.aspx?type=3',  # industry forum
@@ -52,13 +52,23 @@ class GubaSpider(scrapy.Spider):
     #                                                  self.exchange.tzinfo)
 
   def start_requests(self):
-    for url in self.start_mkt_urls:
-      yield scrapy.Request(url, callback=self.parse_stock_urls_page)
+    for mkt, url in self.start_mkt_urls.items():
+      yield scrapy.Request(
+          url, callback=self.parse_stock_urls_page, meta={'market': mkt})
 
   def parse_stock_urls_page(self, response):
     '''
     Parse page contains urls to be further scraped
     '''
+    db_handler = 'stock_code_insert'
+    yield_dict = {
+        'error': False,
+        'meta_dict': {
+            'market': response.meta['market']
+        },
+        'db_handler': db_handler
+    }
+
     li_list = response.xpath('//ul[contains(@class,"ngblistul2")]/li')
 
     # todo: stock_urls_page_parser
@@ -75,6 +85,8 @@ class GubaSpider(scrapy.Spider):
           'stock_url': abs_url
       }
       url_dict_list.append(url_dict)
+    yield_dict['result'] = url_dict_list
+    yield yield_dict
 
     for i in url_dict_list:
       yield scrapy.Request(
@@ -108,7 +120,6 @@ class GubaSpider(scrapy.Spider):
                                'not(.//em[contains(@class,"settop")]) and '
                                'not(contains(@id, "ad_topic"))]')
     post_meta_dict_list = []
-    item = {}
     try:
       for i, p in enumerate(post_list):
         # l1 & l2 read, reply numbers
