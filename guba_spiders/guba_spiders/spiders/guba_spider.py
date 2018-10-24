@@ -262,7 +262,11 @@ class GubaSpider(scrapy.Spider):
           "title": meta['title'],
           "user_name": meta['user_name'],
           "user_url": meta['user_url'],
-          "comment_dict_list": comment_dict_list
+          "comment_dict_list": comment_dict_list,
+          # if doc greater than 16MB, link to children
+          "is_root": True,
+          "doc_no": 0, # +1 for each new document
+          "next_id": ''
       }
       yield_dict['result'] = post_dict
 
