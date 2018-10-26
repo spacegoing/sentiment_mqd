@@ -291,15 +291,12 @@ class GubaSpider(scrapy.Spider):
       yield yield_dict
 
       # todo: stop_flag
-      page_url_list = self.comment_pagination_parser(response)
-      for u in page_url_list:
+      next_url = self.comment_pagination_parser(response)
+      if next_url:
         # comment_stop_mechanism
         if self.comment_cont_dict.get(response.url):
           yield scrapy.Request(
-              u, callback=self.parse_append_comment, meta=meta_dict)
-        else:
-          # self.comment_cont_dict do not have key, then stop
-          break
+              next_url, callback=self.parse_append_comment, meta=meta_dict)
 
       # u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
       # yield scrapy.Request(
@@ -381,7 +378,7 @@ class GubaSpider(scrapy.Spider):
     return page_url
 
   def comment_pagination_parser(self, response):
-    page_url_list = []
+    page_url = ''
     # pagination
     # from js file function gubanews.pager
     page_info = response.xpath(
@@ -394,11 +391,13 @@ class GubaSpider(scrapy.Spider):
       ]
       # from js file define("guba_page", function() {
       page_num = math.ceil(total_num / per_page_num)
-      pos = response.url.index(".html")
-      page_url_list = [(response.url[:pos] + "_%d.html#storeply" % i)
-                       for i in range(2, page_num + 1)]
-
-    return page_url_list
+      next_num = cur_page + 1
+      if next_num > page_num:
+        return ''
+      else:
+        pos = response.meta['post_url'].index('.html#storeply')
+        page_url = response.meta['post_url'][:pos] + "_%d.html#storeply" % next_num
+    return page_url
 
   def comment_list_parser(self, response):
     '''
