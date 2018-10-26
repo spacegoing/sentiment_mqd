@@ -55,6 +55,9 @@ class GubaSpider(scrapy.Spider):
     self.comment_cont_dict = dict()
     self.post_cont_dict = dict()
     self.stop_date_flag = dp.parse('2018-08-31')
+    self.scrapy_meta_keys = [
+        'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
+    ]
 
     # self.exchange = ExchangeParser()
     # private
@@ -118,7 +121,7 @@ class GubaSpider(scrapy.Spider):
     '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
-    meta_dict = response.meta
+    meta_dict = self.get_meta(response)
     db_handler = ''
     yield_dict = {
         'error': False,
@@ -203,14 +206,14 @@ class GubaSpider(scrapy.Spider):
           # if DEBUG:
           #   if p_dict['post_url'] == 'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply':
           #     continue
-          p_dict.update(response.meta)
+          p_dict.update(self.get_meta(response))
           # large document more than 16MB
           yield scrapy.Request(
               'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply',
               callback=self.parse_post_page,
               meta=p_dict)
         else:
-          p_dict.update(response.meta)
+          p_dict.update(self.get_meta(response))
           yield scrapy.Request(
               p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
 
@@ -227,7 +230,7 @@ class GubaSpider(scrapy.Spider):
     '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
-    meta = response.meta
+    meta = self.get_meta(response)
     db_handler = 'post_insert'
     meta_dict = {
         "post_url": response.url,
@@ -313,7 +316,7 @@ class GubaSpider(scrapy.Spider):
   def parse_insert_comment(self, response):
     yield_dict = {
         'error': False,
-        'meta_dict': response.meta,
+        'meta_dict': self.get_meta(response),
     }
     try:
       # todo: comment_stop_flag
@@ -327,7 +330,7 @@ class GubaSpider(scrapy.Spider):
   def parse_append_comment(self, response):
     yield_dict = {
         'error': False,
-        'meta_dict': response.meta,
+        'meta_dict': self.get_meta(response),
         'db_handler': 'comment_append'
     }
     try:
@@ -470,6 +473,12 @@ class GubaSpider(scrapy.Spider):
     }
     yield_dict['db_handler'] = 'error_insert'
     return yield_dict
+
+  def get_meta(self, response):
+    meta = {
+        k: v for k, v in response.meta.items() if k not in self.scrapy_meta_keys
+    }
+    return meta
 
   # todo: multi-spider close
   def closed(self, reason):
