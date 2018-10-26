@@ -9,7 +9,6 @@ import math
 
 DEBUG = True
 
-
 class InnerException(Exception):
   '''
   workaround for inner exception of parse_insert_comment
@@ -55,7 +54,7 @@ class GubaSpider(scrapy.Spider):
     # flags' dict for determing whether keep scraping
     self.comment_cont_dict = dict()
     self.post_cont_dict = dict()
-    self.stop_date_flag = dp.parse('2018-08-31')
+    self.stop_date_flag = dp.parse('2014-12-31')
     self.scrapy_meta_keys = [
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
@@ -122,6 +121,7 @@ class GubaSpider(scrapy.Spider):
     '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
+    self.logger.info(response.url)
     meta_dict = self.get_meta(response)
     db_handler = ''
     yield_dict = {
@@ -203,17 +203,17 @@ class GubaSpider(scrapy.Spider):
     for p_dict in post_meta_dict_list:
       # post_stop_mechanism
       if self.post_cont_dict.get(meta_dict['stock_url']):
-        if DEBUG:  # only one post
-          # if DEBUG:
-          #   if p_dict['post_url'] == 'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply':
-          #     continue
-          p_dict.update(self.get_meta(response))
-          # large document more than 16MB
-          yield scrapy.Request(
-              'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply',
-              callback=self.parse_post_page,
-              meta=p_dict)
-        else:
+        # if DEBUG:  # only one post
+        if DEBUG:
+          if p_dict['post_url'] == 'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply':
+            continue
+        #   p_dict.update(self.get_meta(response))
+        #   # large document more than 16MB
+        #   yield scrapy.Request(
+        #       'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply',
+        #       callback=self.parse_post_page,
+        #       meta=p_dict)
+        # else:
           p_dict.update(self.get_meta(response))
           yield scrapy.Request(
               p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
