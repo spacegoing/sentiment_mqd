@@ -376,8 +376,8 @@ class GubaSpider(scrapy.Spider):
       if next_num > page_num:
         return ''
       else:
-        pos = response.url.index(".html")
-        page_url = response.url[:pos] + "_%d.html" % next_num
+        pos = response.meta['stock_url'].index(".html")
+        page_url = response.meta['stock_url'][:pos] + "_%d.html" % next_num
     return page_url
 
   def comment_pagination_parser(self, response):
