@@ -134,8 +134,8 @@ class GubaSpider(scrapy.Spider):
                                'not(.//em[contains(@class,"settop")]) and '
                                'not(contains(@id, "ad_topic"))]')
     post_meta_dict_list = []
-    try:
-      for i, p in enumerate(post_list):
+    for i, p in enumerate(post_list):
+      try:
         # l1 & l2 read, reply numbers
         read_no = p.xpath(
             'string(./span[contains(@class,"l1")])').extract_first()
@@ -184,17 +184,16 @@ class GubaSpider(scrapy.Spider):
             'last_comment_time': last_comment_time
         }
         post_meta_dict_list.append(post_meta_dict)
-
-    except Exception as e:  #pylint: disable=broad-except
-      # todo: not news row, skip???
-      yield_dict['error'] = {
-          'post_row_html': p.extract(),
-          'error_message': '%s: %s' % (e.__class__, str(e)),
-          'row_no': i,
-          'traceback': traceback.format_exc(),
-          'url': response.url
-      }
-      yield yield_dict
+      except Exception as e:  #pylint: disable=broad-except
+        # todo: not news row, skip???
+        yield_dict['error'] = {
+            'post_row_html': p.extract(),
+            'error_message': '%s: %s' % (e.__class__, str(e)),
+            'row_no': i,
+            'traceback': traceback.format_exc(),
+            'url': response.url
+        }
+        yield yield_dict
 
     # scrape each post
     for p_dict in post_meta_dict_list:
