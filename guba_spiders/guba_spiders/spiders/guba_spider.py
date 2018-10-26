@@ -9,10 +9,20 @@ import math
 
 
 class InnerException(Exception):
+  '''
+  workaround for inner exception of parse_insert_comment
+  only for parse_post_page to use to keep raising
+  exception as i.args[0]
+  '''
   pass
 
 
 class IgnoreException(Exception):
+  '''
+  some unregistered user will cause user_name.strip()
+  NoneType error
+  Ignore those users / comments / posts
+  '''
   pass
 
 
@@ -143,15 +153,18 @@ class GubaSpider(scrapy.Spider):
         pos = post_url.index(".html")
         post_url = post_url[:pos] + ',d.html#storeply'
         # l4 user
+        user_rel_url = ''
+        user_url = ''
         user_name = p.xpath(
             './span[contains(@class,"l4")]/a/text()').extract_first()
-        try:
+        if user_name:
           user_name = user_name.strip()
-        except:
-          raise IgnoreException('ignore')
-        user_rel_url = p.xpath(
-            './span[contains(@class,"l4")]/a/@href').extract_first()
-        user_url = response.urljoin(user_rel_url)
+          user_rel_url = p.xpath(
+              './span[contains(@class,"l4")]/a/@href').extract_first()
+          user_url = response.urljoin(user_rel_url)
+        else: # un-registered users do not have <a> but <span> instead
+          user_name = p.xpath(
+              './span[contains(@class,"l4")]/span/text()').extract_first()
         # l5 last comment time
         last_comment_time = p.xpath(
             './span[contains(@class,"l5")]/text()').extract_first()
@@ -168,8 +181,6 @@ class GubaSpider(scrapy.Spider):
         }
         post_meta_dict_list.append(post_meta_dict)
 
-    except IgnoreException:
-      pass
     except Exception as e:  #pylint: disable=broad-except
       # todo: not news row, skip???
       yield_dict['error'] = {
