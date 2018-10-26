@@ -7,6 +7,7 @@ import Utils.DbUtils as du
 import dateparser as dp
 import math
 
+DEBUG = True
 
 class InnerException(Exception):
   '''
@@ -65,6 +66,8 @@ class GubaSpider(scrapy.Spider):
     for mkt, url in self.start_mkt_urls.items():
       yield scrapy.Request(
           url, callback=self.parse_stock_urls_page, meta={'market': mkt})
+      if DEBUG:
+        break
 
   def parse_stock_urls_page(self, response):
     '''
@@ -99,14 +102,15 @@ class GubaSpider(scrapy.Spider):
     yield yield_dict
 
     for i in url_dict_list:
-      yield scrapy.Request(
-          i['stock_url'], callback=self.parse_forum_page, meta=i)
-
-    # for i in url_dict_list[:1]:
-    #   yield scrapy.Request(
-    #       'http://guba.eastmoney.com/list,600000.html',
-    #       callback=self.parse_forum_page,
-    #       meta=i)
+      if DEBUG:
+        yield scrapy.Request(
+            'http://guba.eastmoney.com/list,600000.html',
+            callback=self.parse_forum_page,
+            meta=i)
+        break
+      else:
+        yield scrapy.Request(
+            i['stock_url'], callback=self.parse_forum_page, meta=i)
 
   def parse_forum_page(self, response):
     '''
@@ -196,16 +200,20 @@ class GubaSpider(scrapy.Spider):
     for p_dict in post_meta_dict_list:
       # post_stop_mechanism
       if self.post_cont_dict.get(meta_dict['stock_url']):
-        p_dict.update(response.meta)
-        yield scrapy.Request(
-            p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
-
-    # for p_dict in post_meta_dict_list[:1]:
-    #   p_dict.update(response.meta)
-    #   yield scrapy.Request(
-    #       'http://guba.eastmoney.com/news,600000,750692559,d.html#storeply',
-    #       callback=self.parse_post_page,
-    #       meta=p_dict)
+        if DEBUG:
+          # if DEBUG:
+          #   if p_dict['post_url'] == 'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply':
+          #     continue
+          p_dict.update(response.meta)
+          # large document more than 16MB
+          yield scrapy.Request(
+              'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply',
+              callback=self.parse_post_page,
+              meta=p_dict)
+        else:
+          p_dict.update(response.meta)
+          yield scrapy.Request(
+              p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
 
     next_url = self.post_pagination_parser(response)
     if next_url:
