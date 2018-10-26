@@ -9,6 +9,7 @@ import math
 
 DEBUG = True
 
+
 class InnerException(Exception):
   '''
   workaround for inner exception of parse_insert_comment
@@ -362,7 +363,7 @@ class GubaSpider(scrapy.Spider):
     # pagination
     # from js file function gubanews.pager
     page_info = response.xpath(
-        '//div[contains(@class, "pager_content")]' +
+        '//div[contains(@class, "pager")]' +
         '/span[@class="pagernums"]/@data-pager').extract_first()
 
     if page_info:
