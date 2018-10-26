@@ -66,7 +66,7 @@ class GubaSpider(scrapy.Spider):
     for mkt, url in self.start_mkt_urls.items():
       yield scrapy.Request(
           url, callback=self.parse_stock_urls_page, meta={'market': mkt})
-      if DEBUG:
+      if DEBUG:  # only one market
         break
 
   def parse_stock_urls_page(self, response):
@@ -102,7 +102,7 @@ class GubaSpider(scrapy.Spider):
     yield yield_dict
 
     for i in url_dict_list:
-      if DEBUG:
+      if DEBUG:  # only one stock
         yield scrapy.Request(
             'http://guba.eastmoney.com/list,600000.html',
             callback=self.parse_forum_page,
@@ -166,7 +166,7 @@ class GubaSpider(scrapy.Spider):
           user_rel_url = p.xpath(
               './span[contains(@class,"l4")]/a/@href').extract_first()
           user_url = response.urljoin(user_rel_url)
-        else: # un-registered users do not have <a> but <span> instead
+        else:  # un-registered users do not have <a> but <span> instead
           user_name = p.xpath(
               './span[contains(@class,"l4")]/span/text()').extract_first()
         # l5 last comment time
@@ -200,7 +200,7 @@ class GubaSpider(scrapy.Spider):
     for p_dict in post_meta_dict_list:
       # post_stop_mechanism
       if self.post_cont_dict.get(meta_dict['stock_url']):
-        if DEBUG:
+        if DEBUG:  # only one post
           # if DEBUG:
           #   if p_dict['post_url'] == 'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply':
           #     continue
@@ -284,7 +284,7 @@ class GubaSpider(scrapy.Spider):
           "comment_dict_list": comment_dict_list,
           # if doc greater than 16MB, link to children
           "is_root": True,
-          "doc_no": 0, # +1 for each new document
+          "doc_no": 0,  # +1 for each new document
           "next_id": ''
       }
       yield_dict['result'] = post_dict
