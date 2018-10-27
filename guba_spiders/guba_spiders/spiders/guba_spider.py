@@ -7,7 +7,7 @@ import Utils.DbUtils as du
 import dateparser as dp
 import math
 
-DEBUG = True
+DEBUG = False
 
 
 class InnerException(Exception):

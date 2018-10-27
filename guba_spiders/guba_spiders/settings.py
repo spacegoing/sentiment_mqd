@@ -14,13 +14,19 @@ BOT_NAME = 'guba_spiders'
 SPIDER_MODULES = ['guba_spiders.spiders']
 NEWSPIDER_MODULE = 'guba_spiders.spiders'
 
-#LOG_LEVEL = 'INFO'
+# myself
+DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
+# RETRY_TIMES = 2
+# AUTOTHROTTLE_ENABLED = True
+# AUTOTHROTTLE_TARGET_CONCURRENCY = 2
+LOG_LEVEL = 'INFO'
+LOG_FILE = 'guba.log'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'guba_spiders (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
-# ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
