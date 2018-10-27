@@ -219,7 +219,10 @@ class GubaSpider(scrapy.Spider):
         else:
           p_dict.update(self.get_meta(response))
           yield scrapy.Request(
-              p_dict['post_url'], callback=self.parse_post_page, meta=p_dict)
+              p_dict['post_url'],
+              callback=self.parse_post_page,
+              meta=p_dict,
+              priority=20)
 
     next_url = self.post_pagination_parser(response)
     if next_url:
@@ -304,7 +307,10 @@ class GubaSpider(scrapy.Spider):
         # comment_stop_mechanism
         if self.comment_cont_dict.get(response.url):
           yield scrapy.Request(
-              next_url, callback=self.parse_append_comment, meta=meta_dict)
+              next_url,
+              callback=self.parse_append_comment,
+              meta=meta_dict,
+              priority=30)
 
       # u = 'http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply'
       # yield scrapy.Request(
