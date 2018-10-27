@@ -95,7 +95,7 @@ date_postcount_ser, date_useccount_ser, time_postcount_ser, time_useccount_ser =
     SH_cols)
 date_postcount_ser.to_csv('SH_date_postcount.csv')
 date_useccount_ser.to_csv('SH_date_usercount.csv')
-time_postcount_ser.to_csv('SH_time_usercount.csv')
+time_postcount_ser.to_csv('SH_time_postcount.csv')
 time_useccount_ser.to_csv('SH_time_usercount.csv')
 
 insert_stock_date_time_count(SZ_cols)
@@ -103,5 +103,5 @@ date_postcount_ser, date_useccount_ser, time_postcount_ser, time_useccount_ser =
     SZ_cols)
 date_postcount_ser.to_csv('SZ_date_postcount.csv')
 date_useccount_ser.to_csv('SZ_date_usercount.csv')
-time_postcount_ser.to_csv('SZ_time_usercount.csv')
+time_postcount_ser.to_csv('SZ_time_postcount.csv')
 time_useccount_ser.to_csv('SZ_time_usercount.csv')
