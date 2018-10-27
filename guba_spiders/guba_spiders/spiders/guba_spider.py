@@ -55,7 +55,7 @@ class GubaSpider(scrapy.Spider):
     # flags' dict for determing whether keep scraping
     self.comment_cont_dict = dict()
     self.post_cont_dict = dict()
-    self.stop_date_flag = dp.parse('2018-08-31')
+    self.stop_date_flag = dp.parse('2014-12-31')
     self.scrapy_meta_keys = [
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
@@ -124,6 +124,7 @@ class GubaSpider(scrapy.Spider):
     '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
+    self.logger.info(response.url)
     meta_dict = self.get_meta(response)
     db_handler = ''
     yield_dict = {
@@ -233,6 +234,7 @@ class GubaSpider(scrapy.Spider):
     '''
     # from scrapy.shell import inspect_response
     # inspect_response(response, self)
+    self.logger.info(response.url)
     meta = self.get_meta(response)
     db_handler = 'post_insert'
     meta_dict = {
@@ -331,6 +333,7 @@ class GubaSpider(scrapy.Spider):
       yield yield_dict
 
   def parse_append_comment(self, response):
+    self.logger.info('parse comment: ' + response.url)
     yield_dict = {
         'error': False,
         'meta_dict': self.get_meta(response),
