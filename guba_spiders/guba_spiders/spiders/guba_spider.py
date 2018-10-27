@@ -95,6 +95,8 @@ class GubaSpider(scrapy.Spider):
       stock_name = raw_str.split(')')[-1].strip()
       rel_url = li.xpath('./a/@href').extract_first()
       abs_url = response.urljoin(rel_url)
+      # to avoid redirect, replace 'topic' with 'list'
+      abs_url = abs_url.replace('topic', 'list')
       url_dict = {
           'stock_code': stock_code,
           'stock_name': stock_name,
