@@ -90,7 +90,7 @@ def get_stats(cols):
   return date_postcount_ser, date_useccount_ser, time_postcount_ser, time_useccount_ser
 
 
-insert_stock_date_time_count(SH_cols)
+# insert_stock_date_time_count(SH_cols)
 date_postcount_ser, date_useccount_ser, time_postcount_ser, time_useccount_ser = get_stats(
     SH_cols)
 date_postcount_ser.to_csv('SH_date_postcount.csv')
@@ -98,7 +98,7 @@ date_useccount_ser.to_csv('SH_date_usercount.csv')
 time_postcount_ser.to_csv('SH_time_postcount.csv')
 time_useccount_ser.to_csv('SH_time_usercount.csv')
 
-insert_stock_date_time_count(SZ_cols)
+# insert_stock_date_time_count(SZ_cols)
 date_postcount_ser, date_useccount_ser, time_postcount_ser, time_useccount_ser = get_stats(
     SZ_cols)
 date_postcount_ser.to_csv('SZ_date_postcount.csv')

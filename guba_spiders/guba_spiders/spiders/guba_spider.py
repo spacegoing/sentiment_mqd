@@ -230,6 +230,8 @@ class GubaSpider(scrapy.Spider):
       if self.post_cont_dict.get(meta_dict['stock_url']):
         yield scrapy.Request(
             next_url, callback=self.parse_forum_page, meta=meta_dict)
+      else:
+        self.logger.info('Finished stock: ' + meta_dict['stock_url'])
 
   def parse_post_page(self, response):
     '''
