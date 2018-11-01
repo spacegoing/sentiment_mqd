@@ -21,6 +21,12 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
 # AUTOTHROTTLE_TARGET_CONCURRENCY = 2
 LOG_LEVEL = 'INFO'
 LOG_FILE = 'guba.log'
+JOBDIR="guba_persist"
+
+CONCURRENT_ITEMS = 1e3
+CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS_PER_DOMAIN = 32
+
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'guba_spiders (+http://www.yourdomain.com)'

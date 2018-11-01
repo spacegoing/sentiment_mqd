@@ -50,8 +50,8 @@ class GubaSpider(scrapy.Spider):
     # flags' dict for determing whether keep scraping
     self.comment_cont_dict = dict()
     self.post_cont_dict = dict()
-    self.max_old_num = 10
-    self.stop_date_flag = dp.parse('2018-10-20')
+    self.max_old_num = 5
+    self.stop_date_flag = dp.parse('2014-12-31')
     self.scrapy_meta_keys = [
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
@@ -239,7 +239,7 @@ class GubaSpider(scrapy.Spider):
     meta = self.get_meta(response)
     db_handler = 'post_insert'
     meta_dict = {
-        "post_url": response.url,
+        "post_url": response.meta['post_url'],
         "stock_code": meta['stock_code'],
         "stock_name": meta['stock_name'],
         "stock_url": meta['stock_url']
@@ -251,7 +251,7 @@ class GubaSpider(scrapy.Spider):
     }
 
     # comment_stop_mechanism
-    self.comment_cont_dict[response.url] = True
+    self.comment_cont_dict[response.meta['post_url']] = True
 
     try:
       post_time = response.xpath(
@@ -277,7 +277,7 @@ class GubaSpider(scrapy.Spider):
         self.logger.info(self.post_cont_dict[meta_dict['stock_url']])
 
       post_dict = {
-          "post_url": response.url,
+          "post_url": response.meta['post_url'],
           "post_date": datetime.combine(post_time.date(), datetime.min.time()),
           "post_datetime": post_time,
           "post_content_html": post_content_html,
@@ -302,7 +302,7 @@ class GubaSpider(scrapy.Spider):
       next_url = self.comment_pagination_parser(response)
       if next_url:
         # comment_stop_mechanism
-        if self.comment_cont_dict[response.url]:
+        if self.comment_cont_dict[response.meta['post_url']]:
           yield scrapy.Request(
               next_url,
               callback=self.parse_append_comment,
@@ -346,6 +346,7 @@ class GubaSpider(scrapy.Spider):
       # comment_stop_mechanism
       for i, c in enumerate(comment_dict_list):
         if c['comment_time'] < self.stop_date_flag:
+          self.logger.info('Comment Finished: ' + response.url)
           self.comment_cont_dict[response.meta['post_url']] = False
           break
       # because the url has already sorted by date. All comments
@@ -354,9 +355,30 @@ class GubaSpider(scrapy.Spider):
 
       yield_dict['result'] = comment_dict_list
       yield yield_dict
+
+      next_url = self.comment_pagination_parser(response)
+      if next_url:
+        # comment_stop_mechanism
+        if self.comment_cont_dict[response.meta['post_url']]:
+          yield scrapy.Request(
+              next_url,
+              callback=self.parse_append_comment,
+              meta=yield_dict['meta_dict'],
+              priority=30)
+
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
+
+      next_url = self.comment_pagination_parser(response)
+      if next_url:
+        # comment_stop_mechanism
+        if self.comment_cont_dict[response.meta['post_url']]:
+          yield scrapy.Request(
+              next_url,
+              callback=self.parse_append_comment,
+              meta=yield_dict['meta_dict'],
+              priority=30)
 
   def post_pagination_parser(self, response):
     page_url = ''
