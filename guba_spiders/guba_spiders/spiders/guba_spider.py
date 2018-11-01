@@ -15,12 +15,7 @@ class InnerException(Exception):
   workaround for inner exception of parse_insert_comment
   only for parse_post_page to use to keep raising
   exception as i.args[0]
-  '''
-  pass
 
-
-class IgnoreException(Exception):
-  '''
   some unregistered user will cause user_name.strip()
   NoneType error
   Ignore those users / comments / posts
@@ -55,7 +50,8 @@ class GubaSpider(scrapy.Spider):
     # flags' dict for determing whether keep scraping
     self.comment_cont_dict = dict()
     self.post_cont_dict = dict()
-    self.stop_date_flag = dp.parse('2014-12-31')
+    self.max_old_num = 10
+    self.stop_date_flag = dp.parse('2018-10-20')
     self.scrapy_meta_keys = [
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
@@ -109,12 +105,15 @@ class GubaSpider(scrapy.Spider):
 
     for i in url_dict_list:
       if DEBUG:  # only one stock
+        i['stock_url'] = 'http://guba.eastmoney.com/list,600000.html'
+        # post_stop_mechanism
+        self.post_cont_dict[i['stock_url']] = 0
         yield scrapy.Request(
-            'http://guba.eastmoney.com/list,600000.html',
-            callback=self.parse_forum_page,
-            meta=i)
+            i['stock_url'], callback=self.parse_forum_page, meta=i)
         break
       else:
+        # post_stop_mechanism
+        self.post_cont_dict[i['stock_url']] = 0
         yield scrapy.Request(
             i['stock_url'], callback=self.parse_forum_page, meta=i)
 
@@ -132,9 +131,6 @@ class GubaSpider(scrapy.Spider):
         'meta_dict': meta_dict,
         'db_handler': db_handler
     }
-
-    # post_stop_mechanism
-    self.post_cont_dict[meta_dict['stock_url']] = True
 
     # exclude top advertisement posts (class="settop" or id="ad_topic")
     post_list = response.xpath('//div[contains(@class,"articleh") and ' +
@@ -205,7 +201,7 @@ class GubaSpider(scrapy.Spider):
     # scrape each post
     for p_dict in post_meta_dict_list:
       # post_stop_mechanism
-      if self.post_cont_dict.get(meta_dict['stock_url']):
+      if self.post_cont_dict[meta_dict['stock_url']] < self.max_old_num:
         if DEBUG:  # only one post
           # if DEBUG:
           #   if p_dict['post_url'] == 'http://guba.eastmoney.com/news,600000,739093106,d.html#storeply':
@@ -227,7 +223,7 @@ class GubaSpider(scrapy.Spider):
     next_url = self.post_pagination_parser(response)
     if next_url:
       # post_stop_mechanism
-      if self.post_cont_dict.get(meta_dict['stock_url']):
+      if self.post_cont_dict[meta_dict['stock_url']] < self.max_old_num:
         yield scrapy.Request(
             next_url, callback=self.parse_forum_page, meta=meta_dict)
       else:
@@ -276,10 +272,9 @@ class GubaSpider(scrapy.Spider):
 
       # post_stop_mechanism
       if last_comment_time < self.stop_date_flag:
-        try:
-          self.post_cont_dict.pop(meta_dict['stock_url'])
-        except Exception as e:
-          raise IgnoreException(e)
+        self.logger.info('Older Detected')
+        self.post_cont_dict[meta_dict['stock_url']] += 1
+        self.logger.info(self.post_cont_dict[meta_dict['stock_url']])
 
       post_dict = {
           "post_url": response.url,
@@ -307,7 +302,7 @@ class GubaSpider(scrapy.Spider):
       next_url = self.comment_pagination_parser(response)
       if next_url:
         # comment_stop_mechanism
-        if self.comment_cont_dict.get(response.url):
+        if self.comment_cont_dict[response.url]:
           yield scrapy.Request(
               next_url,
               callback=self.parse_append_comment,
@@ -320,8 +315,6 @@ class GubaSpider(scrapy.Spider):
 
     except InnerException as i:
       yield i.args[0]
-    except IgnoreException:
-      pass
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
@@ -351,13 +344,9 @@ class GubaSpider(scrapy.Spider):
       comment_dict_list = self.comment_list_parser(response)
 
       # comment_stop_mechanism
-      i = 0
       for i, c in enumerate(comment_dict_list):
         if c['comment_time'] < self.stop_date_flag:
-          try:
-            self.comment_cont_dict.pop(response.meta['post_url'])
-          except:
-            raise IgnoreException('ignore')
+          self.comment_cont_dict[response.meta['post_url']] = False
           break
       # because the url has already sorted by date. All comments
       # before i is later than stop_date_flag
@@ -365,8 +354,6 @@ class GubaSpider(scrapy.Spider):
 
       yield_dict['result'] = comment_dict_list
       yield yield_dict
-    except IgnoreException:
-      pass
     except Exception as e:  #pylint: disable=broad-except
       yield_dict = self.get_except_yield_dict(e, yield_dict, response)
       yield yield_dict
