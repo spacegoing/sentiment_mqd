@@ -21,7 +21,7 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
 # AUTOTHROTTLE_TARGET_CONCURRENCY = 2
 LOG_LEVEL = 'INFO'
 LOG_FILE = 'guba.log'
-JOBDIR="guba_persist"
+JOBDIR = "guba_persist"
 
 CONCURRENT_ITEMS = 1e3
 CONCURRENT_REQUESTS = 32
@@ -67,7 +67,10 @@ ROBOTSTXT_OBEY = False
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
     'guba_spiders.middlewares.GubaSpidersDownloaderMiddleware': None,
-    'guba_spiders.middlewares.RandomUserAgentMiddleware': 400
+    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
+    'guba_spiders.middlewares.RandomUserAgentMiddleware': 400,
+    'guba_spiders.middlewares.ProxyMiddleware': 750,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
 }
 
 FAKEUSERAGENT_FALLBACK = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'  # RandomUserAgentMiddleware setting
@@ -81,7 +84,7 @@ FAKEUSERAGENT_FALLBACK = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleW
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'guba_spiders.pipelines.GubaSpidersPipeline': 300,
+    'guba_spiders.pipelines.GubaSpidersPipeline': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

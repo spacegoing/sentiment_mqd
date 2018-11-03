@@ -4,9 +4,10 @@
 #
 # See documentation in:
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
-
+import random
 from scrapy import signals
 from fake_useragent import UserAgent
+from Utils import DbUtils as db
 
 
 class GubaSpidersSpiderMiddleware(object):
@@ -134,3 +135,9 @@ class RandomUserAgentMiddleware(object):
       request.headers.setdefault('User-Agent', self.proxy2ua[proxy])
     else:
       request.headers.setdefault('User-Agent', get_ua())
+
+class ProxyMiddleware(object):
+
+    def process_request(self, request, spider):
+        ip = random.choice(db.get_proxy_list())
+        request.meta['proxy'] = ip

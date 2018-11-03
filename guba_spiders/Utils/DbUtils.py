@@ -11,6 +11,8 @@ client = MongoClient('mongodb://localhost:27017/')
 mkt_db = client['Guba_Posts']
 client.drop_database('Guba_Meta')
 meta_db = client['Guba_Meta']
+proxy_db = client['Guba_Proxy']
+proxy_col = proxy_db['Proxy']
 
 # mongodb max document size
 max_bson = 15 * 1024 * 1024
@@ -123,6 +125,16 @@ def get_latest_date_time(col_name, tzinfo, website_url=''):
     tz = pytz.timezone(tzinfo)
     latest_date = pytz.utc.localize(latest_date, is_dst=None).astimezone(tz)
   return latest_date
+
+
+def insert_proxy(proxy_list):
+  proxy_col.insert_many(proxy_list)
+
+def get_proxy_list():
+  proxy_list = [
+      'http://%s:%s' % (str(i['ip']), str(i['port'])) for i in proxy_col.find()
+  ]
+  return proxy_list
 
 
 def close_mongo_access():
