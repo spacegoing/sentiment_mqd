@@ -113,6 +113,10 @@ class GubaSpider(scrapy.Spider):
         break
       else:
         # post_stop_mechanism
+        from tofilter import stock_list
+        flags = [True if s in i['stock_url'] else False for s in stock_list]
+        if any(flags):
+          continue
         self.post_cont_dict[i['stock_url']] = 0
         yield scrapy.Request(
             i['stock_url'], callback=self.parse_forum_page, meta=i)
