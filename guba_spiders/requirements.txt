@@ -1,0 +1,8 @@
+pymongo
+dateparser
+scrapy
+fake_useragent
+pytz
+validators
+scrapyd
+scrapyd-client
