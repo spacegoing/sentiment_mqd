@@ -4,3 +4,13 @@
 - http://guba.eastmoney.com/news,600000,750692559,d_6.html#storeply
 - <div id=zwli8731205131>
 - git commit: afc0096
+
+** scrapyd
+
+curl http://localhost:6800/schedule.json -d project=guba_spiders -d spider=guba -d fname=SH_part1.pickle
+curl http://localhost:6800/schedule.json -d project=guba_spiders -d spider=guba -d fname=SH_part2.pickle
+curl http://localhost:6800/schedule.json -d project=guba_spiders -d spider=guba -d fname=SZ_part1.pickle
+curl http://localhost:6800/schedule.json -d project=guba_spiders -d spider=guba -d fname=SZ_part2.pickle
+curl http://localhost:6800/listjobs.json?project=guba_spiders
+curl http://localhost:6800/cancel.json -d project=guba_spiders -d job=
+

@@ -21,7 +21,7 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
 # AUTOTHROTTLE_TARGET_CONCURRENCY = 2
 LOG_LEVEL = 'INFO'
 LOG_FILE = 'guba.log'
-JOBDIR="guba_persist"
+# JOBDIR="guba_persist"
 
 CONCURRENT_ITEMS = 1e3
 CONCURRENT_REQUESTS = 32

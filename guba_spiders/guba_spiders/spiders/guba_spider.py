@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+import pickle
 import traceback
 import scrapy
 import Utils.GeneralUtils as utils
@@ -33,7 +34,7 @@ class GubaSpider(scrapy.Spider):
   '''
   name = 'guba'
 
-  def __init__(self):
+  def __init__(self, *args, **kwargs):
     super().__init__()
     self.start_mkt_urls = {
         'SH': 'http://guba.eastmoney.com/remenba.aspx?type=1&tab=1',  # shanghai
@@ -56,6 +57,11 @@ class GubaSpider(scrapy.Spider):
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
 
+    fname = kwargs['fname']
+    self.logger.info(fname)
+    with open('/home/lchang/mqdCodeLab/sentiment_mqd/guba_spiders/' + fname,
+              'rb') as f:
+      self.url_dict_list = pickle.load(f)
     # self.exchange = ExchangeParser()
     # private
     # if self.exchange.is_multi_source_exchange:
@@ -63,47 +69,48 @@ class GubaSpider(scrapy.Spider):
     #                                                  self.exchange.tzinfo)
 
   def start_requests(self):
-    for mkt, url in self.start_mkt_urls.items():
-      yield scrapy.Request(
-          url, callback=self.parse_stock_urls_page, meta={'market': mkt})
-      if DEBUG:  # only one market
-        break
+    #   for mkt, url in self.start_mkt_urls.items():
+    #     yield scrapy.Request(
+    #         url, callback=self.parse_stock_urls_page, meta={'market': mkt})
+    #     if DEBUG:  # only one market
+    #       break
 
-  def parse_stock_urls_page(self, response):
+    # def parse_stock_urls_page(self, response):
     '''
     Parse page contains urls to be further scraped
     '''
-    db_handler = 'stock_code_insert'
-    yield_dict = {
-        'error': False,
-        'meta_dict': {
-            'market': response.meta['market']
-        },
-        'db_handler': db_handler
-    }
+    # db_handler = 'stock_code_insert'
+    # yield_dict = {
+    #     'error': False,
+    #     'meta_dict': {
+    #         'market': response.meta['market']
+    #     },
+    #     'db_handler': db_handler
+    # }
 
-    li_list = response.xpath('//ul[contains(@class,"ngblistul2")]/li')
+    # li_list = response.xpath('//ul[contains(@class,"ngblistul2")]/li')
 
-    # todo: stock_urls_page_parser
-    url_dict_list = []
-    for li in li_list:
-      raw_str = li.xpath('string(./a)').extract_first()
-      stock_code = utils.re_code_in_parenthesis(raw_str).strip()
-      stock_name = raw_str.split(')')[-1].strip()
-      rel_url = li.xpath('./a/@href').extract_first()
-      abs_url = response.urljoin(rel_url)
-      # to avoid redirect, replace 'topic' with 'list'
-      abs_url = abs_url.replace('topic', 'list')
-      url_dict = {
-          'stock_code': stock_code,
-          'stock_name': stock_name,
-          'stock_url': abs_url
-      }
-      url_dict_list.append(url_dict)
-    yield_dict['result'] = url_dict_list
-    yield yield_dict
+    # # todo: stock_urls_page_parser
+    # url_dict_list = []
+    # for li in li_list:
+    #   raw_str = li.xpath('string(./a)').extract_first()
+    #   stock_code = utils.re_code_in_parenthesis(raw_str).strip()
+    #   stock_name = raw_str.split(')')[-1].strip()
+    #   rel_url = li.xpath('./a/@href').extract_first()
+    #   abs_url = response.urljoin(rel_url)
+    #   # to avoid redirect, replace 'topic' with 'list'
+    #   abs_url = abs_url.replace('topic', 'list')
+    #   url_dict = {
+    #       'stock_code': stock_code,
+    #       'stock_name': stock_name,
+    #       'stock_url': abs_url
+    #   }
+    #   url_dict_list.append(url_dict)
+    # yield_dict['result'] = url_dict_list
+    # yield yield_dict
 
-    for i in url_dict_list:
+    self.logger.info(self.url_dict_list[:10])
+    for i in self.url_dict_list:
       if DEBUG:  # only one stock
         i['stock_url'] = 'http://guba.eastmoney.com/list,600000.html'
         # post_stop_mechanism
@@ -113,7 +120,7 @@ class GubaSpider(scrapy.Spider):
         break
       else:
         # post_stop_mechanism
-        from tofilter import stock_list
+        from Utils.tofilter import stock_list
         flags = [True if s in i['stock_url'] else False for s in stock_list]
         if any(flags):
           continue
