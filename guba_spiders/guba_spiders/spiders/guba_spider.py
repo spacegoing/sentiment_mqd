@@ -59,8 +59,8 @@ class GubaSpider(scrapy.Spider):
 
     fname = kwargs['fname']
     self.logger.info(fname)
-    with open('/home/lchang/mqdCodeLab/sentiment_mqd/guba_spiders/' + fname,
-              'rb') as f:
+    dir_path = '/home/ubuntu/spCodeLab/sentiment_mqd/guba_spiders/urls/'
+    with open(dir_path + fname, 'rb') as f:
       self.url_dict_list = pickle.load(f)
     # self.exchange = ExchangeParser()
     # private
@@ -433,7 +433,8 @@ class GubaSpider(scrapy.Spider):
         return ''
       else:
         pos = response.meta['post_url'].index('.html#storeply')
-        page_url = response.meta['post_url'][:pos] + "_%d.html#storeply" % next_num
+        page_url = response.meta[
+            'post_url'][:pos] + "_%d.html#storeply" % next_num
     return page_url
 
   def comment_list_parser(self, response):
