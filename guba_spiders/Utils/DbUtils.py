@@ -8,7 +8,7 @@ db_handler_dict = dict()
 
 # todo: move to database
 client = MongoClient('mongodb://localhost:27017/')
-mkt_db = client['Guba_Posts']
+mkt_db = client['Guba_Posts_News']
 client.drop_database('Guba_Meta')
 meta_db = client['Guba_Meta']
 

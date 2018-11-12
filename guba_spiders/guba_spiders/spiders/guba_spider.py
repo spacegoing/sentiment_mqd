@@ -51,8 +51,8 @@ class GubaSpider(scrapy.Spider):
     # flags' dict for determing whether keep scraping
     self.comment_cont_dict = dict()
     self.post_cont_dict = dict()
-    self.max_old_num = 5
-    self.stop_date_flag = dp.parse('2014-12-31')
+    self.max_old_num = 80 * 20
+    self.stop_date_flag = dp.parse('2014-12-31', {'%Y-%m-%d'})
     self.scrapy_meta_keys = [
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
@@ -355,6 +355,7 @@ class GubaSpider(scrapy.Spider):
       comment_dict_list = self.comment_list_parser(response)
 
       # comment_stop_mechanism
+      i = 0
       for i, c in enumerate(comment_dict_list):
         if c['comment_time'] < self.stop_date_flag:
           self.logger.info('Comment Finished: ' + response.url)
@@ -457,12 +458,18 @@ class GubaSpider(scrapy.Spider):
       comment_time = utils.re_datetime_in_post(comment_time)
       comment_time = dp.parse(comment_time)
       # user data
+      user_url = ''
       user_name = c.xpath(
           './/span[contains(@class,"zwnick")]/a/text()').extract_first()
-      user_name = user_name.strip()
-      user_url = c.xpath(
-          './/span[contains(@class,"zwnick")]/a/@href').extract_first()
-      user_url = response.urljoin(user_url)
+      if user_name:
+        user_name = user_name.strip()
+        user_url = c.xpath(
+            './/span[contains(@class,"zwnick")]/a/@href').extract_first()
+        user_url = response.urljoin(user_url)
+      else:  # un-registered users do not have <a> but <span> instead
+        user_name = c.xpath(
+            './/span[contains(@class,"zwnick")]/span/text()').extract_first()
+
       # comment data
       comment_text = c.xpath(
           'string(.//div[contains(@class,"zwlitext")])').extract_first()
