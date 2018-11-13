@@ -56,6 +56,7 @@ class GubaSpider(scrapy.Spider):
     self.scrapy_meta_keys = [
         'depth', 'download_timeout', 'download_slot', 'download_latency', '_id'
     ]
+    self.forum_total_cur_pagi_dict = dict()  # list[total, current page no]
 
     fname = kwargs['fname']
     self.logger.info(fname)
@@ -111,6 +112,7 @@ class GubaSpider(scrapy.Spider):
 
     self.logger.info(self.url_dict_list[:10])
     for i in self.url_dict_list:
+      self.forum_total_cur_pagi_dict[i['stock_url']] = [1e10, 1]
       if DEBUG:  # only one stock
         i['stock_url'] = 'http://guba.eastmoney.com/list,600000.html'
         # post_stop_mechanism
@@ -400,19 +402,33 @@ class GubaSpider(scrapy.Spider):
         '//div[contains(@class, "pager")]' +
         '/span[@class="pagernums"]/@data-pager').extract_first()
 
-    if page_info:
-      _, total_num, per_page_num, cur_page = page_info.split('|')
-      total_num, per_page_num, cur_page = [
-          int(i.strip()) for i in [total_num, per_page_num, cur_page]
-      ]
-      # from js file define("guba_page", function() {
-      page_num = math.ceil(total_num / per_page_num)
-      next_num = cur_page + 1
-      if next_num > page_num:
-        return ''
-      else:
-        pos = response.meta['stock_url'].index(".html")
-        page_url = response.meta['stock_url'][:pos] + "_%d.html" % next_num
+    try:
+      if page_info:
+        _, total_num, per_page_num, cur_page = page_info.split('|')
+        total_num, per_page_num, cur_page = [
+            int(i.strip()) for i in [total_num, per_page_num, cur_page]
+        ]
+        # from js file define("guba_page", function() {
+        page_num = math.ceil(total_num / per_page_num)
+        next_num = cur_page + 1
+        if next_num > page_num:
+          return ''
+        else:
+          pos = response.meta['stock_url'].index(".html")
+          page_url = response.meta['stock_url'][:pos] + "_%d.html" % next_num
+          self.forum_total_cur_pagi_dict[response
+                                         .meta['stock_url']][0] = total_num
+          self.forum_total_cur_pagi_dict[response
+                                         .meta['stock_url']][1] = next_num
+    except:
+      self.logger.info('nopagination: ' + response.url)
+      self.logger.info(page_info)
+      next_num = self.forum_total_cur_pagi_dict[response
+                                                .meta['stock_url']][1] + 1
+      pos = response.meta['stock_url'].index(".html")
+      page_url = response.meta['stock_url'][:pos] + "_%d.html" % next_num
+      self.forum_total_cur_pagi_dict[response.meta['stock_url']][1] = next_num
+      self.logger.info('autoforwarded to: ' + page_url)
     return page_url
 
   def comment_pagination_parser(self, response):
